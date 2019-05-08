@@ -1,0 +1,7 @@
+this line should not output
+this foo line should not output
+this bar line should not output
+this foo bar line _should_ output
+so should this bar foo
+foo and this bar
+but not this
