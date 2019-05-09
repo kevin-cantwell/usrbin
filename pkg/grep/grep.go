@@ -180,30 +180,27 @@ func New(pattern string, opts ...Option) *Grep {
 func (cmd *Grep) Exec(input io.Reader) io.Reader {
 	r, w := io.Pipe()
 
-	matchers, err := cmd.matchers()
+	matcher, err := cmd.allMatcher()
 	if err != nil {
 		w.CloseWithError(err)
 		return r
 	}
 
 	go func() {
-
 		s := bufio.NewScanner(input)
+
 		for s.Scan() {
-			for _, m := range matchers {
-				line := s.Bytes()
-				if m.Match(line) {
-					_, err := w.Write(append(line, '\n'))
-					if err != nil {
-						w.CloseWithError(err)
-						return
-					}
-					break
+			line := s.Bytes()
+			if matcher.Match(line) {
+				_, err := w.Write(append(line, '\n'))
+				if err != nil {
+					w.CloseWithError(err)
+					return
 				}
 			}
 		}
-		w.CloseWithError(s.Err())
 
+		w.CloseWithError(s.Err())
 	}()
 
 	return r
@@ -214,54 +211,68 @@ type matcher struct {
 	opts   *options
 }
 
-func (m *matcher) Match(line []byte) bool {
-	matches := func() bool {
-		if !m.regexp.Match(line) {
-			return false
-		}
+func (m *matcher) match(line []byte) bool {
+	if !m.regexp.Match(line) {
+		return false
+	}
 
-		// match lines only
-		if m.opts.x {
-			match := m.regexp.Find(line)
-			if m.opts.i {
-				return bytes.EqualFold(match, line)
+	// match lines only
+	if m.opts.x {
+		match := m.regexp.Find(line)
+		if m.opts.i {
+			return bytes.EqualFold(match, line)
+		}
+		return bytes.Equal(match, line)
+	}
+
+	// match whole words only
+	if m.opts.w {
+		indexes := m.regexp.FindAllIndex(line, -1)
+		for _, i := range indexes {
+			begin, end := i[0], i[1]
+			switch {
+			case begin == 0 && end == len(line):
+				return true
+			case begin == 0 && !syntax.IsWordChar(rune(line[end])):
+				return true
+			case end == len(line) && !syntax.IsWordChar(rune(line[begin-1])):
+				return true
 			}
-			return bytes.Equal(match, line)
 		}
+		return false
+	}
 
-		// match whole words only
-		if m.opts.w {
-			indexes := m.regexp.FindAllIndex(line, -1)
-			for _, i := range indexes {
-				begin, end := i[0], i[1]
-				switch {
-				case begin == 0 && end == len(line):
-					return true
-				case begin == 0 && !syntax.IsWordChar(rune(line[end])):
-					return true
-				case end == len(line) && !syntax.IsWordChar(rune(line[begin-1])):
-					return true
-				}
-			}
-			return false
-		}
-
-		return true
-	}()
-
-	// invert match if necessary
-	return matches != m.opts.v // xor
+	return true
 }
 
-func (cmd *Grep) matchers() ([]*matcher, error) {
+type matchAll struct {
+	each []*matcher
+	opts *options
+}
+
+func (ms matchAll) Match(line []byte) bool {
+	var matches bool
+
+	for _, m := range ms.each {
+		if m.match(line) {
+			matches = true
+			break
+		}
+	}
+
+	// invert match if necessary
+	return matches != ms.opts.v // xor
+}
+
+func (cmd *Grep) allMatcher() (*matchAll, error) {
 	var matchers []*matcher
 
-	appendRegex := func(expr string) error {
+	addExpr := func(expr string) error {
 		xflags := syntax.Perl // -p, --perl-regexp
 		if cmd.opts.i {
 			xflags |= syntax.FoldCase // -i, --ignore-case
 		}
-		parsed, err := syntax.Parse(expr, syntax.Perl|syntax.FoldCase)
+		parsed, err := syntax.Parse(expr, xflags)
 		if err != nil {
 			return err
 		}
@@ -276,7 +287,7 @@ func (cmd *Grep) matchers() ([]*matcher, error) {
 	// obtain patterns from input, split on newlines. But only if regexps and files are unset.
 	if len(cmd.opts.e) == 0 && len(cmd.opts.f) == 0 {
 		for _, expr := range strings.Split(cmd.pattern, "\n") {
-			if err := appendRegex(expr); err != nil {
+			if err := addExpr(expr); err != nil {
 				return nil, err
 			}
 		}
@@ -285,7 +296,7 @@ func (cmd *Grep) matchers() ([]*matcher, error) {
 	// obtain patterns from regexp option, split on newlines
 	for _, pattern := range cmd.opts.e {
 		for _, expr := range strings.Split(pattern, "\n") {
-			if err := appendRegex(expr); err != nil {
+			if err := addExpr(expr); err != nil {
 				return nil, err
 			}
 		}
@@ -295,7 +306,7 @@ func (cmd *Grep) matchers() ([]*matcher, error) {
 	for _, file := range cmd.opts.f {
 		s := bufio.NewScanner(file)
 		for s.Scan() {
-			if err := appendRegex(s.Text()); err != nil {
+			if err := addExpr(s.Text()); err != nil {
 				return nil, err
 			}
 		}
@@ -304,5 +315,5 @@ func (cmd *Grep) matchers() ([]*matcher, error) {
 		}
 	}
 
-	return matchers, nil
+	return &matchAll{each: matchers, opts: cmd.opts}, nil
 }

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kevin-cantwell/usrbin/grep"
+	"github.com/kevin-cantwell/usrbin/pkg/grep"
 )
 
 func TestGrep(t *testing.T) {
