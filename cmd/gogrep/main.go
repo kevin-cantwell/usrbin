@@ -1,174 +1,200 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"io"
-	"os"
+	"strings"
 
-	"github.com/kevin-cantwell/usrbin/pkg/grep"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
+	"rsc.io/getopt"
 )
 
 var (
-	flags = []flag{
-		{"regexp", "e", []string{}, "use PATTERN for matching"},
-		{"file", "f", []string{}, "obtain PATTERN from FILE"},
-		{"ignore-case", "i", false, "ignore case distinctions"},
-		{"invert-match", "v", false, "select non-matching lines"},
-		{"word-regexp", "w", false, "force PATTERN to match only whole words"},
-		{"line-regexp", "x", false, "force PATTERN to match only whole lines"},
-	}
+// flags = []flag{
+// 	{"regexp", "e", []string{}, "use PATTERN for matching"},
+// 	{"file", "f", []string{}, "obtain PATTERN from FILE"},
+// 	{"ignore-case", "i", false, "ignore case distinctions"},
+// 	{"invert-match", "v", false, "select non-matching lines"},
+// 	{"word-regexp", "w", false, "force PATTERN to match only whole words"},
+// 	{"line-regexp", "x", false, "force PATTERN to match only whole lines"},
+// }
 )
 
-type flag struct {
-	name  string
-	short string
-	val   interface{}
-	use   string
+type stringSlice []string
+
+func (flag *stringSlice) String() string {
+	return strings.Join(*flag, " ")
 }
 
-func setFlags(flagset *pflag.FlagSet) {
-	for _, f := range flags {
-		switch val := f.val.(type) {
-		case []string:
-			flagset.StringArrayP(f.name, f.short, val, f.use)
-		case bool:
-			flagset.BoolP(f.name, f.short, val, f.use)
-		case string:
-			flagset.StringP(f.name, f.short, val, f.use)
-		}
-	}
+func (flag *stringSlice) Set(value string) error {
+	*flag = append(*flag, value)
+	return nil
 }
+
+var (
+	e stringSlice
+	f stringSlice
+	i bool
+	v bool
+	w bool
+	x bool
+)
+
+func init() {
+	flagVar(&e, "e", "regexp", "use PATTERN for matching")
+	flagVar(&f, "f", "file", "obtain PATTERN from FILE")
+	flagVar(&i, "i", "ignore-case", "ignore case distinctions")
+	flagVar(&v, "v", "invert-match", "select non-matching lines")
+	flagVar(&w, "w", "word-regexp", "force PATTERN to match only whole words")
+	flagVar(&x, "x", "line-regexp", "force PATTERN to match only whole lines")
+}
+
+func flagVar(f interface{}, short, long, usage string) {
+	switch p := f.(type) {
+	case *bool:
+		flag.BoolVar(p, short, *p, usage)
+	case *string:
+		flag.StringVar(p, short, *p, usage)
+	case *stringSlice:
+		flag.Var(p, short, usage)
+	}
+	getopt.Alias(short, long)
+}
+
+// type flag struct {
+// 	name  string
+// 	short string
+// 	val   interface{}
+// 	use   string
+// }
+
+// func setFlags(flagset *pflag.FlagSet) {
+// 	for _, f := range flags {
+// 		switch val := f.val.(type) {
+// 		case []string:
+// 			flagset.StringArrayP(f.name, f.short, val, f.use)
+// 		case bool:
+// 			flagset.BoolP(f.name, f.short, val, f.use)
+// 		case string:
+// 			flagset.StringP(f.name, f.short, val, f.use)
+// 		}
+// 	}
+// }
 
 func main() {
-	var exitCode int
+	getopt.Parse()
+	fmt.Println(flag.Args())
 
-	cmd := &cobra.Command{}
-	cmd.SetUsageTemplate(usage)
-	cmd.SetHelpTemplate(help)
+	// if len(os.Args) == 1 {
+	// 	return cmd.Usage()
+	// }
 
-	setFlags(cmd.Flags())
+	// flagset := cmd.Flags()
 
-	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		if len(os.Args) == 1 {
-			return cmd.Usage()
-		}
+	// var (
+	// 	pattern string
+	// 	files   = args
+	// )
 
-		flagset := cmd.Flags()
+	// if len(args) > 0 {
+	// 	pattern = args[0]
+	// 	files = args[1:]
+	// }
 
-		var (
-			pattern string
-			files   = args
-		)
+	// var opts []grep.Opt
 
-		if len(args) > 0 {
-			pattern = args[0]
-			files = args[1:]
-		}
+	// for _, flag := range flags {
+	// 	if !flagset.Lookup(flag.name).Changed {
+	// 		continue
+	// 	}
 
-		var opts []grep.Opt
+	// 	switch name := flag.name; name {
+	// 	case "regexp":
+	// 		e, err := flagset.GetStringArray(name)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		for _, pattern := range e {
+	// 			opts = append(opts, grep.WithRegexps(pattern))
+	// 		}
+	// 		pattern = ""
+	// 		files = args
+	// 	case "file":
+	// 		f, err := flagset.GetStringArray(name)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		for _, filename := range f {
+	// 			file, err := os.Open(filename)
+	// 			if err != nil {
+	// 				return err
+	// 			}
+	// 			opts = append(opts, grep.WithFiles(file))
+	// 		}
+	// 		pattern = ""
+	// 		files = args
+	// 	case "ignore-case":
+	// 		i, err := flagset.GetBool(name)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		if i {
+	// 			opts = append(opts, grep.WithIgnoreCase())
+	// 		}
 
-		for _, flag := range flags {
-			if !flagset.Lookup(flag.name).Changed {
-				continue
-			}
+	// 		// TODO: if pattern == "" show usage
+	// 	case "invert-match":
+	// 		v, err := flagset.GetBool(name)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		if v {
+	// 			opts = append(opts, grep.WithInvertMatch())
+	// 		}
+	// 	case "word-regexp":
+	// 		w, err := flagset.GetBool(name)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		if w {
+	// 			opts = append(opts, grep.WithWordRegexp())
+	// 		}
+	// 	case "line-regexp":
+	// 		x, err := flagset.GetBool(name)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		if x {
+	// 			opts = append(opts, grep.WithLineRegexp())
+	// 		}
+	// 	}
+	// }
 
-			switch name := flag.name; name {
-			case "regexp":
-				e, err := flagset.GetStringArray(name)
-				if err != nil {
-					return err
-				}
-				for _, pattern := range e {
-					opts = append(opts, grep.WithRegexps(pattern))
-				}
-				pattern = ""
-				files = args
-			case "file":
-				f, err := flagset.GetStringArray(name)
-				if err != nil {
-					return err
-				}
-				for _, filename := range f {
-					file, err := os.Open(filename)
-					if err != nil {
-						return err
-					}
-					opts = append(opts, grep.WithFiles(file))
-				}
-				pattern = ""
-				files = args
-			case "ignore-case":
-				i, err := flagset.GetBool(name)
-				if err != nil {
-					return err
-				}
-				if i {
-					opts = append(opts, grep.WithIgnoreCase())
-				}
+	// var inputs []io.Reader
+	// for _, filename := range files {
+	// 	if filename == "-" {
+	// 		inputs = append(inputs, os.Stdin)
+	// 		continue
+	// 	}
+	// 	file, err := os.Open(filename)
+	// 	if err != nil {
+	// 		fmt.Printf("gogrep: %s: No such file or directory\n", filename)
+	// 		exitCode = 1
+	// 		continue
+	// 	}
+	// 	inputs = append(inputs, file)
+	// 	defer file.Close()
+	// }
 
-				// TODO: if pattern == "" show usage
-			case "invert-match":
-				v, err := flagset.GetBool(name)
-				if err != nil {
-					return err
-				}
-				if v {
-					opts = append(opts, grep.WithInvertMatch())
-				}
-			case "word-regexp":
-				w, err := flagset.GetBool(name)
-				if err != nil {
-					return err
-				}
-				if w {
-					opts = append(opts, grep.WithWordRegexp())
-				}
-			case "line-regexp":
-				x, err := flagset.GetBool(name)
-				if err != nil {
-					return err
-				}
-				if x {
-					opts = append(opts, grep.WithLineRegexp())
-				}
-			}
-		}
+	// var input io.Reader
+	// if len(inputs) > 0 {
+	// 	input = io.MultiReader(inputs...)
+	// } else {
+	// 	input = os.Stdin
+	// }
 
-		var inputs []io.Reader
-		for _, filename := range files {
-			if filename == "-" {
-				inputs = append(inputs, os.Stdin)
-				continue
-			}
-			file, err := os.Open(filename)
-			if err != nil {
-				fmt.Printf("gogrep: %s: No such file or directory\n", filename)
-				exitCode = 1
-				continue
-			}
-			inputs = append(inputs, file)
-			defer file.Close()
-		}
-
-		var input io.Reader
-		if len(inputs) > 0 {
-			input = io.MultiReader(inputs...)
-		} else {
-			input = os.Stdin
-		}
-
-		output := grep.New(pattern, opts...).Exec(input)
-		_, err := io.Copy(os.Stdout, output)
-		return err
-	}
-
-	cmd.Execute()
-	if exitCode == 0 {
-		exitCode = 1
-	}
-	os.Exit(exitCode)
+	// output := grep.New(pattern, opts...).Exec(input)
+	// _, err := io.Copy(os.Stdout, output)
+	// return err
 }
 
 const usage = `Usage: gogrep [OPTION]... PATTERN [FILE]...
