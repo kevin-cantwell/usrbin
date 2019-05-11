@@ -14,38 +14,40 @@ import (
 	"strings"
 )
 
-type Option func(*options)
+// TODO: specific usage error types to communicate usage errors
+
+type Opt func(*Opts)
 
 // WithRegexps uses one or more patterns; newlines within patterns
-// separate each pattern from the next. If this option is used multiple times
-// or is combined with the WithFiles option, search for all patterns given.
-func WithRegexps(patterns ...string) Option {
-	return func(opts *options) {
+// separate each pattern from the next. If this Opt is used multiple times
+// or is combined with the WithFiles Opt, search for all patterns given.
+func WithRegexps(patterns ...string) Opt {
+	return func(opts *Opts) {
 		opts.e = append(opts.e, patterns...)
 	}
 }
 
-// WithFiles obtain patterns from files, one per line. If this option is
-// combined with the WithRegexps option, search for all patterns given.
+// WithFiles obtain patterns from files, one per line. If this Opt is
+// combined with the WithRegexps Opt, search for all patterns given.
 // The empty file contains zero patterns, and therefore matches nothing.
-func WithFiles(files ...*os.File) Option {
-	return func(opts *options) {
+func WithFiles(files ...*os.File) Opt {
+	return func(opts *Opts) {
 		opts.f = append(opts.f, files...)
 	}
 }
 
 // WithIgnoreCase ignores case distinctions, so that characters that differ
-// only in case match each other. Setting this option is identical to specifying
+// only in case match each other. Setting this Opt is identical to specifying
 // a case-insensitive flag in pattern.
-func WithIgnoreCase() Option {
-	return func(opts *options) {
+func WithIgnoreCase() Opt {
+	return func(opts *Opts) {
 		opts.i = true
 	}
 }
 
 // WithInvertMatch inverts the sense of matching, to select non-matching lines.
-func WithInvertMatch() Option {
-	return func(opts *options) {
+func WithInvertMatch() Opt {
+	return func(opts *Opts) {
 		opts.v = true
 	}
 }
@@ -55,9 +57,9 @@ func WithInvertMatch() Option {
 // of the line, or preceded by a non-word constituent character. Similarly, it
 // must be either at the end of the line or followed by a non-word constituent
 // character. Word constituent characters are letters, digits, and the underscore.
-// This option has no effect if WithLineRegexp is also specified.
-func WithWordRegexp() Option {
-	return func(opts *options) {
+// This Opt has no effect if WithLineRegexp is also specified.
+func WithWordRegexp() Opt {
+	return func(opts *Opts) {
 		if opts.x {
 			return
 		}
@@ -68,14 +70,14 @@ func WithWordRegexp() Option {
 // WithLineRegexp selects only those matches that exactly match the whole line.
 // For regular expression patterns, this is like parenthesizing each pattern and
 // then surrounding it with ‘^’ and ‘$’.
-func WithLineRegexp() Option {
-	return func(opts *options) {
+func WithLineRegexp() Opt {
+	return func(opts *Opts) {
 		opts.x = true
 		opts.w = false
 	}
 }
 
-type options struct {
+type Opts struct {
 	// Matching Control
 	// https://www.gnu.org/software/grep/manual/grep.html#Matching-Control
 
@@ -95,7 +97,7 @@ type options struct {
 	// General Output control
 	// https://www.gnu.org/software/grep/manual/grep.html#General-Output-Control
 
-	// Other Options
+	// Other Opts
 	//   -z, --null-data           a data line ends in 0 byte, not newline
 	z bool
 
@@ -160,20 +162,20 @@ type options struct {
 // the list of patterns, there is no way to match newline characters in a text.
 type Grep struct {
 	pattern string
-	opts    *options
+	opts    *Opts
 }
 
 // New returns a Grep that matches pattern with opts set. The pattern argument
 // contains one or more patterns separated by newlines. Each resulting pattern is
 // interpreted according to the regexp package.
-func New(pattern string, opts ...Option) *Grep {
-	options := &options{}
+func New(pattern string, opts ...Opt) *Grep {
+	Opts := &Opts{}
 	for _, opt := range opts {
-		opt(options)
+		opt(Opts)
 	}
 	return &Grep{
 		pattern: pattern,
-		opts:    options,
+		opts:    Opts,
 	}
 }
 
@@ -208,7 +210,7 @@ func (cmd *Grep) Exec(input io.Reader) io.Reader {
 
 type matcher struct {
 	regexp *regexp.Regexp
-	opts   *options
+	opts   *Opts
 }
 
 func (m *matcher) match(line []byte) bool {
@@ -247,7 +249,7 @@ func (m *matcher) match(line []byte) bool {
 
 type matchAll struct {
 	each []*matcher
-	opts *options
+	opts *Opts
 }
 
 func (ms matchAll) Match(line []byte) bool {
@@ -293,7 +295,7 @@ func (cmd *Grep) allMatcher() (*matchAll, error) {
 		}
 	}
 
-	// obtain patterns from regexp option, split on newlines
+	// obtain patterns from regexp Opt, split on newlines
 	for _, pattern := range cmd.opts.e {
 		for _, expr := range strings.Split(pattern, "\n") {
 			if err := addExpr(expr); err != nil {

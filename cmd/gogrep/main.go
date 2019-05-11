@@ -51,7 +51,7 @@ func main() {
 	setFlags(cmd.Flags())
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		if !cmd.HasFlags() && len(args) == 0 {
+		if len(os.Args) == 1 {
 			return cmd.Usage()
 		}
 
@@ -67,7 +67,7 @@ func main() {
 			files = args[1:]
 		}
 
-		var opts []grep.Option
+		var opts []grep.Opt
 
 		for _, flag := range flags {
 			if !flagset.Lookup(flag.name).Changed {
@@ -107,6 +107,8 @@ func main() {
 				if i {
 					opts = append(opts, grep.WithIgnoreCase())
 				}
+
+				// TODO: if pattern == "" show usage
 			case "invert-match":
 				v, err := flagset.GetBool(name)
 				if err != nil {
@@ -170,7 +172,8 @@ func main() {
 }
 
 const usage = `Usage: gogrep [OPTION]... PATTERN [FILE]...
-Try 'gogrep --help' for more information.`
+Try 'gogrep --help' for more information.
+`
 
 const help = `Usage: gogrep [OPTION]... PATTERN [FILE]...
 Search for PATTERN in each FILE.

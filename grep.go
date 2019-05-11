@@ -6,6 +6,6 @@ import (
 	"github.com/kevin-cantwell/usrbin/pkg/grep"
 )
 
-func Grep(pattern string, input io.Reader, opts ...grep.Option) io.Reader {
+func Grep(input io.Reader, pattern string, opts ...grep.Opt) io.Reader {
 	return grep.New(pattern, opts...).Exec(input)
 }
