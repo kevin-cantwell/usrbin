@@ -168,18 +168,21 @@ type Grep struct {
 // New returns a Grep that matches pattern with opts set. The pattern argument
 // contains one or more patterns separated by newlines. Each resulting pattern is
 // interpreted according to the regexp package.
-func New(pattern string, opts ...Opt) *Grep {
+func New(opts ...Opt) *Grep {
 	Opts := &Opts{}
 	for _, opt := range opts {
 		opt(Opts)
 	}
 	return &Grep{
-		pattern: pattern,
-		opts:    Opts,
+		opts: Opts,
 	}
 }
 
-func (cmd *Grep) Exec(input io.Reader) io.Reader {
+func (cmd *Grep) Exec(args []string) io.Reader {
+	panic("todo")
+}
+
+func (cmd *Grep) Read(input io.Reader) io.Reader {
 	r, w := io.Pipe()
 
 	matcher, err := cmd.allMatcher()

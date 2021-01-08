@@ -1,4 +1,4 @@
-The `userbin` project takes ambitious aim at translating common POSIX and GNU programs as pure Go interfaces.
+The `userbin` project takes  aim at translating common POSIX and GNU programs as pure Go interfaces.
 
 Every program translated must naturally consume some input and emit some output. Thus, the core of usrbin is
 the `Cmd` interface:

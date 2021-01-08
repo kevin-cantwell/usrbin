@@ -3,9 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 
-	"rsc.io/getopt"
+	getopt "github.com/pborman/getopt/v2"
 )
 
 var (
@@ -31,57 +32,28 @@ func (flag *stringSlice) Set(value string) error {
 }
 
 var (
-	e stringSlice
-	f stringSlice
-	i bool
-	v bool
-	w bool
-	x bool
+	e = getopt.ListLong("regexp", 'e', "use PATTERN for matching", "PATTERN")
+	f = getopt.ListLong("file", 'f', "obtain PATTERN from FILE", "FILE")
+	i = getopt.BoolLong("ignore-case", 'i', "ignore case distinctions")
+	v = getopt.BoolLong("invert-match", 'v', "select non-matching lines")
+	w = getopt.BoolLong("word-regexp", 'w', "force PATTERN to match only whole words")
+	x = getopt.BoolLong("line-regexp", 'x', "force PATTERN to match only whole lines")
 )
 
-func init() {
-	flagVar(&e, "e", "regexp", "use PATTERN for matching")
-	flagVar(&f, "f", "file", "obtain PATTERN from FILE")
-	flagVar(&i, "i", "ignore-case", "ignore case distinctions")
-	flagVar(&v, "v", "invert-match", "select non-matching lines")
-	flagVar(&w, "w", "word-regexp", "force PATTERN to match only whole words")
-	flagVar(&x, "x", "line-regexp", "force PATTERN to match only whole lines")
-}
-
-func flagVar(f interface{}, short, long, usage string) {
-	switch p := f.(type) {
-	case *bool:
-		flag.BoolVar(p, short, *p, usage)
-	case *string:
-		flag.StringVar(p, short, *p, usage)
-	case *stringSlice:
-		flag.Var(p, short, usage)
-	}
-	getopt.Alias(short, long)
-}
-
-// type flag struct {
-// 	name  string
-// 	short string
-// 	val   interface{}
-// 	use   string
-// }
-
-// func setFlags(flagset *pflag.FlagSet) {
-// 	for _, f := range flags {
-// 		switch val := f.val.(type) {
-// 		case []string:
-// 			flagset.StringArrayP(f.name, f.short, val, f.use)
-// 		case bool:
-// 			flagset.BoolP(f.name, f.short, val, f.use)
-// 		case string:
-// 			flagset.StringP(f.name, f.short, val, f.use)
-// 		}
-// 	}
-// }
-
 func main() {
-	getopt.Parse()
+	err := getopt.Getopt(func(opt getopt.Option) bool {
+		switch opt.ShortName() {
+		case "e":
+		case "f":
+		case "":
+		}
+		fmt.Println("Getopt:", opt.Name(), opt.Value())
+		return true
+	})
+	if err != nil {
+		// code to handle error
+		fmt.Fprintf(os.Stderr, "%T: %s\n", err, err)
+	}
 	fmt.Println(flag.Args())
 
 	// if len(os.Args) == 1 {

@@ -2,16 +2,20 @@ package usrbin
 
 import "io"
 
-type Cmd interface {
-	Exec(io.Reader) io.Reader
+type Reader interface {
+	Read(io.Reader) io.Reader
 }
 
-func Pipe(in io.Reader, cmds ...Cmd) io.Reader {
+type Execer interface {
+	Exec(params []string) io.Reader
+}
+
+func Pipe(in io.Reader, pipes ...Reader) io.Reader {
 	out, w := io.Pipe()
 
 	go func() {
-		for _, cmd := range cmds {
-			in = cmd.Exec(in)
+		for _, pipe := range pipes {
+			in = pipe.Read(in)
 		}
 		_, err := io.Copy(w, in)
 		if err == io.EOF {
